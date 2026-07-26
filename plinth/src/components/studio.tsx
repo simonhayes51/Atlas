@@ -48,7 +48,10 @@ export function Studio({
   const [previewDevice, setPreviewDevice] = useState("iphone-6.9");
   const [exportDevices, setExportDevices] = useState<string[]>(["iphone-6.9"]);
   const [exportLocales, setExportLocales] = useState<string[]>([DRAFT_LOCALE]);
-  const [status, setStatus] = useState<{ kind: "idle" | "saving" | "exporting" | "error" | "saved"; message?: string }>({
+  const [status, setStatus] = useState<{
+    kind: "idle" | "saving" | "exporting" | "error" | "saved" | "render-error";
+    message?: string;
+  }>({
     kind: "idle",
   });
   const [aiOpen, setAiOpen] = useState(false);
@@ -83,12 +86,18 @@ export function Studio({
   const draw = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas || !frame) return;
-    await renderFrame(canvas, {
-      frame,
-      device,
-      locale,
-      watermark: plan.watermark,
-    });
+    try {
+      await renderFrame(canvas, {
+        frame,
+        device,
+        locale,
+        watermark: plan.watermark,
+      });
+      setStatus((s) => (s.kind === "render-error" ? { kind: "idle" } : s));
+    } catch (err) {
+      console.error("Preview render failed:", err);
+      setStatus({ kind: "render-error" });
+    }
   }, [frame, device, locale, plan.watermark]);
 
   useEffect(() => {
@@ -268,15 +277,21 @@ export function Studio({
             })}
           </div>
 
-          <div
-            className="max-h-[62vh] overflow-hidden rounded-lg shadow-[0_1px_1px_rgba(0,0,0,0.04)]"
-            style={{ aspectRatio: `${device.width} / ${device.height}` }}
-            tabIndex={0}
-            onPaste={onPaste}
-            aria-label="Screenshot preview canvas — click and paste an image, or drag one in"
-          >
-            <canvas ref={canvasRef} className="h-full max-h-[62vh] w-auto" />
+          <div className="max-w-full overflow-hidden rounded-lg shadow-[0_1px_1px_rgba(0,0,0,0.04)]">
+            <canvas
+              ref={canvasRef}
+              className="block h-auto max-h-[62vh] w-auto max-w-full"
+              style={{ aspectRatio: `${device.width} / ${device.height}` }}
+              tabIndex={0}
+              onPaste={onPaste}
+              aria-label="Screenshot preview canvas — click and paste an image, or drag one in"
+            />
           </div>
+          {status.kind === "render-error" && (
+            <p className="text-xs text-[var(--terracotta)]">
+              Couldn&apos;t render the preview in this browser. Try reloading, or switch browsers if it persists.
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>

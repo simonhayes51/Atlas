@@ -14,19 +14,39 @@ export async function POST() {
     return NextResponse.redirect(new URL("/login", siteUrl()), 303);
   }
 
-  const stripe = getStripe();
-  const checkout = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
-    // Reuse the Stripe customer if they've checked out before.
-    ...(user.stripe_customer_id
-      ? { customer: user.stripe_customer_id }
-      : { customer_email: user.email }),
-    client_reference_id: user.id,
-    metadata: { user_id: user.id },
-    success_url: `${siteUrl()}/account?success=1`,
-    cancel_url: `${siteUrl()}/account`,
-  });
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_PRICE_ID) {
+    return NextResponse.redirect(
+      new URL(
+        `/account?error=${encodeURIComponent("Billing isn't configured on this deployment yet.")}`,
+        siteUrl()
+      ),
+      303
+    );
+  }
 
-  return NextResponse.redirect(checkout.url!, 303);
+  try {
+    const stripe = getStripe();
+    const checkout = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+      // Reuse the Stripe customer if they've checked out before.
+      ...(user.stripe_customer_id
+        ? { customer: user.stripe_customer_id }
+        : { customer_email: user.email }),
+      client_reference_id: user.id,
+      metadata: { user_id: user.id },
+      success_url: `${siteUrl()}/account?success=1`,
+      cancel_url: `${siteUrl()}/account`,
+    });
+
+    return NextResponse.redirect(checkout.url!, 303);
+  } catch {
+    return NextResponse.redirect(
+      new URL(
+        `/account?error=${encodeURIComponent("Couldn't start checkout. Try again in a moment.")}`,
+        siteUrl()
+      ),
+      303
+    );
+  }
 }

@@ -16,9 +16,9 @@ export const metadata = { title: "Account" };
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; keySaved?: string }>;
+  searchParams: Promise<{ success?: string; keySaved?: string; error?: string }>;
 }) {
-  const { success, keySaved } = await searchParams;
+  const { success, keySaved, error } = await searchParams;
   const session = await getSessionUser();
   if (!session) redirect("/login");
   const user = getUserById(session.id);
@@ -58,6 +58,11 @@ export default async function AccountPage({
         {keySaved && (
           <p className="rounded-md border border-[var(--spruce)]/40 bg-[var(--spruce)]/10 px-4 py-3 text-sm text-[var(--spruce)]">
             API key saved.
+          </p>
+        )}
+        {error && (
+          <p className="rounded-md border border-[var(--terracotta)]/40 bg-[var(--terracotta)]/10 px-4 py-3 text-sm text-[var(--terracotta)]">
+            {error}
           </p>
         )}
 

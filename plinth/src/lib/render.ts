@@ -101,9 +101,9 @@ function drawBezel(
   screenshot: HTMLImageElement | null,
   bezel: DevicePreset["bezel"]
 ) {
-  const frameThickness = w * 0.032;
-  const outerRadius = w * 0.13;
-  const innerRadius = outerRadius * 0.75;
+  const frameThickness = w * 0.024;
+  const outerRadius = w * 0.1;
+  const innerRadius = outerRadius * 0.8;
 
   ctx.save();
   roundedRectPath(ctx, x, y, w, h, outerRadius);
@@ -195,28 +195,28 @@ export async function renderFrame(
   const textColor = frame.textColor === "ink" ? "#1b1712" : "#f3eee3";
   const wide = device.width / device.height > 1.25;
 
-  const padX = device.width * (wide ? 0.1 : 0.09);
-  let cursorY = device.height * (wide ? 0.09 : 0.1);
+  const padX = device.width * (wide ? 0.09 : 0.08);
+  let cursorY = device.height * (wide ? 0.08 : 0.075);
 
   if (text?.headline) {
     ctx.fillStyle = textColor;
     ctx.textAlign = "center";
-    ctx.font = `600 ${device.width * 0.062}px "${fonts.headlineFamily}", serif`;
+    ctx.font = `600 ${device.width * 0.07}px "${fonts.headlineFamily}", serif`;
     const lines = wrapText(ctx, text.headline, device.width - padX * 2);
-    const lineHeight = device.width * 0.072;
+    const lineHeight = device.width * 0.09;
     for (const line of lines) {
       cursorY += lineHeight;
       ctx.fillText(line, device.width / 2, cursorY);
     }
-    cursorY += device.width * 0.02;
+    cursorY += device.width * 0.026;
   }
 
   if (text?.subheadline) {
     ctx.fillStyle = textColor;
     ctx.globalAlpha = 0.82;
-    ctx.font = `400 ${device.width * 0.028}px "${fonts.bodyFamily}", sans-serif`;
+    ctx.font = `400 ${device.width * 0.03}px "${fonts.bodyFamily}", sans-serif`;
     const lines = wrapText(ctx, text.subheadline, device.width - padX * 2.4);
-    const lineHeight = device.width * 0.038;
+    const lineHeight = device.width * 0.041;
     for (const line of lines) {
       cursorY += lineHeight;
       ctx.fillText(line, device.width / 2, cursorY);
@@ -226,10 +226,17 @@ export async function renderFrame(
 
   const screenshot = frame.screenshot ? await loadImage(frame.screenshot).catch(() => null) : null;
 
-  const bezelWidth = device.width * (wide ? 0.68 : 0.74);
-  const bezelHeight = device.height * (wide ? 0.62 : 0.6);
+  // The device fills whatever room is left below the copy — a short headline
+  // means a bigger device, not a dead gap — and bleeds slightly past the
+  // bottom edge on portrait devices for a larger-than-frame, dynamic feel.
+  const gap = device.height * 0.045;
+  const bezelTop = cursorY + gap;
+  const bleed = device.height * (wide ? 0.02 : 0.045);
+  const bezelWidth = device.width * (wide ? 0.76 : 0.86);
+  const minBezelHeight = device.height * 0.38;
+  const bezelHeight = Math.max(device.height - bezelTop + bleed, minBezelHeight);
   const bezelX = (device.width - bezelWidth) / 2;
-  const bezelY = device.height - bezelHeight - device.height * 0.06;
+  const bezelY = bezelTop;
 
   drawBezel(ctx, bezelX, bezelY, bezelWidth, bezelHeight, screenshot, device.bezel);
 

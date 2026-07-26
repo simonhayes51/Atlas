@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ClipCheck Settings</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 560px;
+        margin: 40px auto;
+        padding: 0 20px;
+        color: #18181b;
+      }
+      h1 {
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      h1 img {
+        width: 28px;
+        height: 28px;
+      }
+      section {
+        border: 1px solid #e4e4e7;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 16px;
+        background: #fff;
+      }
+      h2 {
+        font-size: 14px;
+        margin: 0 0 6px;
+      }
+      p.muted {
+        color: #71717a;
+        font-size: 13px;
+        line-height: 1.5;
+        margin: 0 0 12px;
+      }
+      label.check {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 14px;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 140px;
+        border: 1px solid #d4d4d8;
+        border-radius: 8px;
+        padding: 10px;
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
+      }
+      button {
+        background: #4338ca;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      #saved {
+        color: #059669;
+        font-size: 13px;
+        margin-left: 10px;
+      }
+      .locked {
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      #upgrade {
+        background: #4338ca;
+      }
+    </style>
+  </head>
+  <body>
+    <h1><img src="../icons/icon48.png" alt="" /> ClipCheck Settings</h1>
+
+    <section>
+      <h2>Alerts</h2>
+      <label class="check">
+        <input type="checkbox" id="enabled" />
+        Warn me when an email mentions an attachment but has none
+      </label>
+    </section>
+
+    <section>
+      <h2>Custom keywords <span id="pro-tag"></span></h2>
+      <p class="muted">
+        One phrase per line. These are checked in addition to the built-in
+        phrases (English, German, French, Spanish, Italian, Dutch,
+        Portuguese). Example: <code>the deck</code>, <code>signed contract</code>.
+      </p>
+      <div id="keywords-area">
+        <textarea id="keywords" placeholder="the deck&#10;signed contract&#10;invoice attached"></textarea>
+        <button id="save">Save</button><span id="saved"></span>
+      </div>
+      <div id="upgrade-area"></div>
+    </section>
+
+    <script src="config.js"></script>
+    <script src="ExtPay.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

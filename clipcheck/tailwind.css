@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@source "./site/index.html";
+
+/* Subtle dotted texture — ClipCheck's signature background */
+.dot-grid {
+  background-image: radial-gradient(circle, rgb(15 23 42 / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, #000 55%, transparent 100%);
+}
+
+.dot-grid-dark {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+}

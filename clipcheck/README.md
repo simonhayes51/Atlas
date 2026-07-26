@@ -77,8 +77,9 @@ icons/               # 16/32/48/128 png
 
 ## Publishing to the Chrome Web Store
 
-1. Zip the extension files only — `manifest.json`, `src/`, `icons/`
-   (exclude `site/`, which is the marketing page, and `README.md`).
+1. Zip the extension files only — `manifest.json`, `src/`, `icons/`.
+   Exclude `site/`, `tailwind.css`, `package.json`, `node_modules/` and
+   `README.md` — those are the landing page and its build tooling.
 2. [Chrome Web Store developer console](https://chrome.google.com/webstore/devconsole)
    → New item → upload the zip ($5 one-time developer fee).
 3. Category: Workflow & Planning. Justify permissions: `storage`
@@ -90,11 +91,30 @@ icons/               # 16/32/48/128 png
 
 `site/` is a self-contained static landing page for SEO ("gmail forgot
 attachment" searches) with a CTA to the Web Store listing. It is not part
-of the extension. To deploy it on Railway: New Project → Deploy from
-GitHub repo → set **Root Directory** to `clipcheck/site` — Railpack's
-Staticfile provider serves it as-is. (Any static host works.) After
-publishing to the Web Store, replace the `href="#"` on the "Add to
-Chrome" button with your listing URL.
+of the extension.
+
+**Deploy on Railway:** New Project → Deploy from GitHub repo → set
+**Root Directory** to `clipcheck/site` — Railpack's Staticfile provider
+serves it as-is. (Any static host works.) No build runs at deploy time:
+the page ships as HTML + a prebuilt `styles.css` and **zero JavaScript**.
+
+**After publishing to the Web Store**, replace every `href="#"` on the
+"Add to Chrome" buttons with your listing URL (there are four, each
+marked with a comment).
+
+**Editing the styles:** the markup uses Tailwind utility classes and
+`styles.css` is a committed build artifact. If you change classes in
+`index.html`, regenerate it:
+
+```bash
+npm install        # one-time, installs the Tailwind CLI here
+npm run build:css  # regenerates site/styles.css
+```
+
+`tailwind.css` holds the Tailwind import plus the two custom dot-grid
+utilities. The `package.json` in this folder is build tooling for the
+landing page only — it is not part of the extension and is not used at
+deploy time (Railway's root directory is `clipcheck/site`).
 
 ## Notes for a buyer
 

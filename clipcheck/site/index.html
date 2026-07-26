@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClipCheck — Never Send a Gmail Without the Attachment Again</title>
+  <meta name="description" content="ClipCheck is a free Chrome extension that warns you before Gmail sends an email that says 'see attached' with nothing attached. Works in 7 languages, catches Ctrl+Enter too." />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <meta property="og:title" content="ClipCheck — Forgot Attachment Alerts for Gmail" />
+  <meta property="og:description" content="A Chrome extension that stops the classic 'please find attached' email with nothing attached." />
+  <meta property="og:type" content="website" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #18181b;
+      line-height: 1.6;
+      background: #fff;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+    header { padding: 20px 0; display: flex; align-items: center; gap: 10px; }
+    header img { width: 28px; height: 28px; border-radius: 6px; }
+    header span { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+    .hero { text-align: center; padding: 64px 0 48px; }
+    h1 {
+      font-size: clamp(30px, 5.5vw, 48px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .hero p.sub {
+      color: #52525b;
+      font-size: 19px;
+      max-width: 600px;
+      margin: 20px auto 0;
+    }
+    .cta {
+      display: inline-block;
+      margin-top: 32px;
+      background: #4338ca;
+      color: #fff;
+      font-weight: 600;
+      font-size: 16px;
+      padding: 14px 32px;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+    .cta:hover { background: #3730a3; }
+    .cta-note { color: #a1a1aa; font-size: 13px; margin-top: 10px; }
+    .demo {
+      margin: 56px auto 0;
+      max-width: 460px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+      padding: 24px;
+      text-align: left;
+    }
+    .demo .title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .demo .body { font-size: 14px; color: #444; margin-bottom: 18px; }
+    .demo .buttons { display: flex; gap: 10px; justify-content: flex-end; }
+    .demo .btn {
+      font-size: 13px; padding: 8px 16px; border-radius: 6px;
+    }
+    .demo .ghost { border: 1px solid #ccc; color: #444; }
+    .demo .primary { background: #4338ca; color: #fff; font-weight: 600; }
+    .demo .brand { font-size: 11px; color: #999; margin-top: 14px; }
+    section.features { background: #fafafa; border-top: 1px solid #f1f1f3; margin-top: 72px; padding: 56px 0; }
+    .grid { display: grid; gap: 32px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+    .grid h3 { font-size: 15px; margin-bottom: 6px; }
+    .grid p { font-size: 14px; color: #52525b; }
+    section.faq { padding: 64px 0; }
+    section.faq h2 { text-align: center; font-size: 26px; letter-spacing: -0.02em; margin-bottom: 36px; }
+    .qa { max-width: 640px; margin: 0 auto 28px; }
+    .qa h3 { font-size: 16px; margin-bottom: 6px; }
+    .qa p { font-size: 14px; color: #52525b; }
+    footer { border-top: 1px solid #f1f1f3; padding: 28px 0; text-align: center; color: #a1a1aa; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <img src="icon128.png" alt="ClipCheck logo" />
+      <span>ClipCheck</span>
+    </header>
+
+    <div class="hero">
+      <h1>Never send &ldquo;please find attached&rdquo; without the attachment again.</h1>
+      <p class="sub">
+        ClipCheck is a Chrome extension that checks your Gmail drafts the moment
+        you hit Send. Mentioned an attachment but forgot to attach it? It stops
+        the email before it goes out.
+      </p>
+      <!-- Replace # with your Chrome Web Store listing URL after publishing -->
+      <a class="cta" href="#" rel="noopener">Add to Chrome — it's free</a>
+      <p class="cta-note">Works with any Gmail account · No signup · Nothing leaves your browser</p>
+
+      <div class="demo" role="img" aria-label="Screenshot of the ClipCheck warning dialog">
+        <div class="title">Forgot the attachment?</div>
+        <div class="body">Your email mentions an attachment, but nothing is attached.</div>
+        <div class="buttons">
+          <span class="btn ghost">Send anyway</span>
+          <span class="btn primary">Go back</span>
+        </div>
+        <div class="brand">ClipCheck</div>
+      </div>
+    </div>
+  </div>
+
+  <section class="features">
+    <div class="wrap grid">
+      <div>
+        <h3>Catches every send</h3>
+        <p>Send button and Ctrl/Cmd+Enter alike. If your draft says "see attached", "enclosed", or "my CV" and nothing's attached, you'll know before it leaves.</p>
+      </div>
+      <div>
+        <h3>7 languages built in</h3>
+        <p>English, German, French, Spanish, Italian, Dutch and Portuguese phrases — "anbei", "ci-joint", "adjunto" and friends are all covered.</p>
+      </div>
+      <div>
+        <h3>Smart, not naggy</h3>
+        <p>No warning if you attached a file, linked to Google Drive, Dropbox or WeTransfer, or if "see attached" only appears in the email you're replying to.</p>
+      </div>
+      <div>
+        <h3>Private by design</h3>
+        <p>Everything runs locally in your browser. Your emails are never sent to a server, never stored, never analyzed anywhere but on your machine.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq">
+    <div class="wrap">
+      <h2>Frequently asked questions</h2>
+      <div class="qa">
+        <h3>Does ClipCheck read my email?</h3>
+        <p>Only locally, at the moment you press Send, to check for attachment phrases — the same way spell-check reads what you type. Nothing is transmitted or stored.</p>
+      </div>
+      <div class="qa">
+        <h3>Is it free?</h3>
+        <p>Yes — the full attachment check is free forever. A Pro upgrade adds your own custom keyword list (e.g. "the deck", "signed contract").</p>
+      </div>
+      <div class="qa">
+        <h3>Does it work with Google Workspace accounts?</h3>
+        <p>Yes. ClipCheck works on mail.google.com with any account, personal or Workspace.</p>
+      </div>
+      <div class="qa">
+        <h3>What about Outlook?</h3>
+        <p>Gmail only for now. Outlook has a similar feature built in; Gmail doesn't — that's why ClipCheck exists.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 ClipCheck · Forgot-attachment alerts for Gmail
+  </footer>
+</body>
+</html>

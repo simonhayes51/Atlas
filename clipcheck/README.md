@@ -77,13 +77,24 @@ icons/               # 16/32/48/128 png
 
 ## Publishing to the Chrome Web Store
 
-1. Zip the folder contents (not the folder itself).
+1. Zip the extension files only — `manifest.json`, `src/`, `icons/`
+   (exclude `site/`, which is the marketing page, and `README.md`).
 2. [Chrome Web Store developer console](https://chrome.google.com/webstore/devconsole)
    → New item → upload the zip ($5 one-time developer fee).
 3. Category: Workflow & Planning. Justify permissions: `storage`
    (settings), `alarms` (periodic license re-check),
    `extensionpay.com` host (payments).
 4. Listing keywords: see SEO section below.
+
+## Landing page (site/)
+
+`site/` is a self-contained static landing page for SEO ("gmail forgot
+attachment" searches) with a CTA to the Web Store listing. It is not part
+of the extension. To deploy it on Railway: New Project → Deploy from
+GitHub repo → set **Root Directory** to `clipcheck/site` — Railpack's
+Staticfile provider serves it as-is. (Any static host works.) After
+publishing to the Web Store, replace the `href="#"` on the "Add to
+Chrome" button with your listing URL.
 
 ## Notes for a buyer
 

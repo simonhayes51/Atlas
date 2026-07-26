@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
+import {
+  countGenerationsThisMonth,
+  getUserById,
+  listRecentGenerations,
+} from "@/lib/db";
 import { logout } from "@/app/auth/actions";
 import { planFor } from "@/lib/plans";
 import { Badge } from "@/components/ui/badge";
@@ -10,35 +15,14 @@ import { HistoryList } from "@/components/history-list";
 export const metadata = { title: "Generator" };
 
 export default async function AppPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getSessionUser();
+  if (!session) redirect("/login");
+  const user = getUserById(session.id);
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan")
-    .eq("id", user.id)
-    .single();
-  const plan = planFor(profile?.plan);
-
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
-
-  const [{ count: used }, { data: history }] = await Promise.all([
-    supabase
-      .from("generations")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .gte("created_at", monthStart.toISOString()),
-    supabase
-      .from("generations")
-      .select("id, review, reply, tone, business_name, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20),
-  ]);
+  const plan = planFor(user.plan);
+  const used = countGenerationsThisMonth(user.id);
+  const history = listRecentGenerations(user.id, 20);
 
   return (
     <div className="min-h-screen bg-zinc-100">
@@ -54,7 +38,7 @@ export default async function AppPage() {
           </div>
           <nav className="flex items-center gap-4 text-sm">
             <span className="text-zinc-500">
-              {used ?? 0}/{plan.repliesPerMonth} this month
+              {used}/{plan.repliesPerMonth} this month
             </span>
             <Link href="/account" className="text-zinc-600 hover:text-zinc-900">
               Account
@@ -70,10 +54,10 @@ export default async function AppPage() {
 
       <main className="mx-auto max-w-3xl space-y-8 px-6 py-8">
         <Generator
-          atLimit={(used ?? 0) >= plan.repliesPerMonth}
+          atLimit={used >= plan.repliesPerMonth}
           isFree={plan.name === "Free"}
         />
-        <HistoryList items={history ?? []} />
+        <HistoryList items={history} />
       </main>
     </div>
   );

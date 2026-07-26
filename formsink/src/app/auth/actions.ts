@@ -1,46 +1,55 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import {
+  createSession,
+  destroySession,
+  hashPassword,
+  verifyPassword,
+} from "@/lib/auth";
+import { createUser, getUserByEmail } from "@/lib/db";
 
 export async function login(formData: FormData) {
-  const supabase = await createClient();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(formData.get("password") ?? "");
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: String(formData.get("email") ?? ""),
-    password: String(formData.get("password") ?? ""),
-  });
-
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+  const user = email ? getUserByEmail(email) : undefined;
+  if (!user || !verifyPassword(password, user.password_hash)) {
+    redirect(`/login?error=${encodeURIComponent("Invalid email or password")}`);
   }
+
+  await createSession(user);
   redirect("/dashboard");
 }
 
 export async function signup(formData: FormData) {
-  const supabase = await createClient();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(formData.get("password") ?? "");
 
-  const { data, error } = await supabase.auth.signUp({
-    email: String(formData.get("email") ?? ""),
-    password: String(formData.get("password") ?? ""),
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/callback`,
-    },
-  });
-
-  if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    redirect(`/signup?error=${encodeURIComponent("Enter a valid email address")}`);
+  }
+  if (password.length < 6) {
+    redirect(
+      `/signup?error=${encodeURIComponent("Password must be at least 6 characters")}`
+    );
+  }
+  if (getUserByEmail(email)) {
+    redirect(
+      `/signup?error=${encodeURIComponent("An account with that email already exists")}`
+    );
   }
 
-  // With "Confirm email" disabled in Supabase, a session exists immediately.
-  if (data.session) {
-    redirect("/dashboard");
-  }
-  redirect("/signup?check=1");
+  const user = createUser(email, hashPassword(password));
+  await createSession(user);
+  redirect("/dashboard");
 }
 
 export async function logout() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  await destroySession();
   redirect("/");
 }

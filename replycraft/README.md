@@ -10,16 +10,20 @@ seconds. Powered by Claude.
 cancellation through the Customer Portal. Cost per reply is well under 1p,
 so Pro margins are ~99%.
 
+**Architecture: one deploy.** Fully self-contained — SQLite for data,
+built-in auth (bcrypt + signed session cookie). No external database, no
+auth provider. One Railway service with a volume and you're live.
+
 ## Stack
 
 | Layer     | Tech                                              |
 | --------- | ------------------------------------------------- |
 | App       | Next.js 15 (App Router) + TypeScript + Tailwind 4 |
 | AI        | Anthropic Claude API (`@anthropic-ai/sdk`)        |
-| Database  | Supabase (Postgres + Row Level Security)          |
-| Auth      | Supabase Auth (email + password)                  |
+| Database  | SQLite via `better-sqlite3` (single file on disk) |
+| Auth      | bcrypt password hashes + JWT session cookie (`jose`) |
 | Payments  | Stripe Checkout + Customer Portal + one webhook   |
-| Hosting   | Vercel (zero config)                              |
+| Hosting   | Railway (single service + volume)                 |
 
 No scrapers, no review-platform APIs, no OAuth integrations. The user
 pastes text in and copies text out — nothing external can break.
@@ -32,7 +36,9 @@ pastes text in and copies text out — nothing external can break.
 2. The prompt enforces: match the review's language, sound human, never
    invent facts/compensation, 2–5 sentences, output only the reply.
 3. Each generation is stored in `generations` (usage metering + history).
-4. Stripe webhook keeps `profiles.plan` in sync with the subscription.
+4. Stripe webhook keeps `users.plan` in sync with the subscription.
+
+The database schema is created automatically on first run (`src/lib/db.ts`).
 
 ## Local development
 
@@ -42,21 +48,16 @@ cp .env.example .env.local   # fill in the values (see below)
 npm run dev
 ```
 
-### 1. Supabase setup (~5 min)
+The SQLite file defaults to `./data/replycraft.db` (gitignored). Sign up
+at `/signup` — accounts work immediately, no email confirmation.
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. Run `supabase/migrations/001_init.sql` in the SQL editor.
-3. (Recommended) Authentication → Sign In / Up → Email → disable
-   **Confirm email**, or leave it on — `/auth/callback` handles the links.
-4. Copy the project URL, anon key and service-role key into `.env.local`.
-
-### 2. Anthropic setup (~2 min)
+### 1. Anthropic setup (~2 min)
 
 Create an API key at [platform.claude.com](https://platform.claude.com) and
 set `ANTHROPIC_API_KEY`. The model defaults to `claude-opus-5`; set
 `CLAUDE_MODEL` to change it (e.g. a cheaper model) without touching code.
 
-### 3. Stripe setup (~5 min)
+### 2. Stripe setup (~5 min)
 
 1. Create a product "ReplyCraft Pro" with a recurring monthly price (e.g.
    £9). Copy the price ID into `STRIPE_PRICE_ID`.
@@ -72,25 +73,28 @@ set `ANTHROPIC_API_KEY`. The model defaults to `claude-opus-5`; set
 | Variable                        | Required | Purpose                                    |
 | ------------------------------- | -------- | ------------------------------------------ |
 | `NEXT_PUBLIC_SITE_URL`          | yes      | Public app URL (redirects, SEO)            |
-| `NEXT_PUBLIC_SUPABASE_URL`      | yes      | Supabase project URL                       |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes      | Supabase anon key (RLS-scoped)             |
-| `SUPABASE_SERVICE_ROLE_KEY`     | yes      | Server-only; Stripe webhook plan sync      |
+| `DATABASE_PATH`                 | prod     | SQLite file path (`/data/replycraft.db` on Railway) |
+| `AUTH_SECRET`                   | yes      | Signs session cookies (`openssl rand -hex 32`) |
 | `ANTHROPIC_API_KEY`             | yes      | Claude API key                             |
 | `CLAUDE_MODEL`                  | no       | Model override (default `claude-opus-5`)   |
 | `STRIPE_SECRET_KEY`             | yes      | Stripe API key                             |
 | `STRIPE_PRICE_ID`               | yes      | Price ID of the Pro subscription           |
 | `STRIPE_WEBHOOK_SECRET`         | yes      | Webhook signature verification             |
 
-## Deploying to Vercel
+## Deploying to Railway (the whole deployment)
 
-1. Import the repo into Vercel; set the root directory to this folder.
-2. Add all env vars; set `NEXT_PUBLIC_SITE_URL` to the production URL.
-3. Point the Stripe webhook at the production URL.
+1. New Project → Deploy from GitHub repo. Set **Root Directory** to this
+   folder if the repo contains multiple apps.
+2. Attach a **Volume** mounted at `/data`.
+3. Set the env vars above (`DATABASE_PATH=/data/replycraft.db`, `AUTH_SECRET`
+   from `openssl rand -hex 32`, `NEXT_PUBLIC_SITE_URL` to your Railway domain).
+4. Point the Stripe webhook at the deployed URL.
 
 ## Codebase map
 
 ```
-supabase/migrations/001_init.sql  # profiles + generations, RLS, signup trigger
+src/lib/db.ts                     # SQLite schema + all queries — the data layer
+src/lib/auth.ts                   # sessions (jose JWT cookie) + bcrypt passwords
 src/lib/plans.ts                  # plan limits & tones — change pricing here
 src/lib/claude.ts                 # THE core feature: prompt + Claude call
 src/app/app/actions.ts            # generate server action (auth, limits, store)
@@ -102,7 +106,7 @@ src/app/api/stripe/               # checkout, portal, webhook
 
 ## Notes for a buyer
 
-- **Running costs:** Supabase + Vercel free tiers, plus Claude usage. A Pro
+- **Running costs:** one Railway service (~$5/month) plus Claude usage. A Pro
   user maxing out 500 replies costs well under £1/month in API spend against
   £9 revenue.
 - **Maintenance surface:** one prompt and one API call. No review-platform

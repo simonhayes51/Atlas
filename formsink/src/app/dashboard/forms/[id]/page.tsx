@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
+import { getUserForm, listSubmissions } from "@/lib/db";
 import { deleteForm, updateForm } from "@/app/dashboard/actions";
 import { siteUrl } from "@/lib/stripe";
 import { Button } from "@/components/ui/button";
@@ -12,25 +13,16 @@ export default async function FormDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const session = await getSessionUser();
+  if (!session) redirect("/login");
 
-  const { data: form } = await supabase
-    .from("forms")
-    .select("id, name, notify, redirect_url, created_at")
-    .eq("id", id)
-    .single();
+  const form = getUserForm(session.id, id);
   if (!form) notFound();
 
-  const { data: submissions } = await supabase
-    .from("submissions")
-    .select("id, data, created_at")
-    .eq("form_id", id)
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const submissions = listSubmissions(id, 100).map((s) => ({
+    ...s,
+    fields: JSON.parse(s.data) as Record<string, string>,
+  }));
 
   const endpoint = `${siteUrl()}/f/${form.id}`;
   const snippet = `<form action="${endpoint}" method="POST">
@@ -43,11 +35,7 @@ export default async function FormDetailPage({
 
   // Union of keys across recent submissions → table columns.
   const columns = Array.from(
-    new Set(
-      (submissions ?? []).flatMap((s) =>
-        Object.keys(s.data as Record<string, string>)
-      )
-    )
+    new Set(submissions.flatMap((s) => Object.keys(s.fields)))
   ).slice(0, 6);
 
   return (
@@ -91,7 +79,7 @@ export default async function FormDetailPage({
               <input
                 type="checkbox"
                 name="notify"
-                defaultChecked={form.notify}
+                defaultChecked={form.notify === 1}
                 className="h-4 w-4 rounded border-zinc-300"
               />
               Email me each submission
@@ -120,7 +108,7 @@ export default async function FormDetailPage({
           <CardTitle>
             Submissions{" "}
             <span className="font-normal text-zinc-400">
-              (latest {submissions?.length ?? 0})
+              (latest {submissions.length})
             </span>
           </CardTitle>
           <a
@@ -131,7 +119,7 @@ export default async function FormDetailPage({
           </a>
         </CardHeader>
         <CardContent className="px-0">
-          {(submissions ?? []).length === 0 ? (
+          {submissions.length === 0 ? (
             <p className="px-5 py-6 text-center text-sm text-zinc-500">
               No submissions yet. Send a test one with the snippet above.
             </p>
@@ -149,24 +137,24 @@ export default async function FormDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {(submissions ?? []).map((s) => {
-                    const data = s.data as Record<string, string>;
-                    return (
-                      <tr key={s.id} className="border-b border-zinc-50">
-                        <td className="whitespace-nowrap px-5 py-3 text-zinc-500">
-                          {new Date(s.created_at).toLocaleString("en-GB", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
+                  {submissions.map((s) => (
+                    <tr key={s.id} className="border-b border-zinc-50">
+                      <td className="whitespace-nowrap px-5 py-3 text-zinc-500">
+                        {new Date(`${s.created_at}Z`).toLocaleString("en-GB", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </td>
+                      {columns.map((c) => (
+                        <td
+                          key={c}
+                          className="max-w-xs truncate px-5 py-3 text-zinc-800"
+                        >
+                          {s.fields[c] ?? ""}
                         </td>
-                        {columns.map((c) => (
-                          <td key={c} className="max-w-xs truncate px-5 py-3 text-zinc-800">
-                            {data[c] ?? ""}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
+                      ))}
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

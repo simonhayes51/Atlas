@@ -9,6 +9,10 @@ runs **client-side in the browser** — images are never uploaded anywhere.
 small watermark) → Pro at £5/month (no watermark, exports up to 3840px) via
 Stripe subscription with self-serve cancellation through the Customer Portal.
 
+**Architecture: one deploy.** Fully self-contained — SQLite for accounts,
+built-in auth (bcrypt + signed session cookie). No external database, no
+auth provider. One Railway service with a volume and you're live.
+
 ## Stack
 
 | Layer     | Tech                                                    |
@@ -16,14 +20,13 @@ Stripe subscription with self-serve cancellation through the Customer Portal.
 | App       | Next.js 15 (App Router) + TypeScript + Tailwind 4       |
 | Rendering | `html-to-image` (DOM → PNG, fully client-side)          |
 | Code mode | `highlight.js` (auto language detection, GitHub Dark)   |
-| Database  | Supabase (one table: `profiles`)                        |
-| Auth      | Supabase Auth (email + password)                        |
+| Database  | SQLite via `better-sqlite3` (one table: `users`)        |
+| Auth      | bcrypt password hashes + JWT session cookie (`jose`)    |
 | Payments  | Stripe Checkout + Customer Portal + one webhook         |
-| Hosting   | Vercel (zero config)                                    |
+| Hosting   | Railway (single service + volume)                       |
 
 There is **no server-side image processing**. The server's only jobs are
 auth, knowing whether a user is Pro, and syncing that flag from Stripe.
-That makes the maintenance surface close to zero.
 
 ## How it works
 
@@ -38,23 +41,20 @@ That makes the maintenance surface close to zero.
 4. Free users get a small corner watermark and 1280px exports; Pro unlocks
    2560px/3840px and removes the watermark.
 
+The database schema is created automatically on first run (`src/lib/db.ts`).
+
 ## Local development
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in the values (see below)
+cp .env.example .env.local   # set AUTH_SECRET; DATABASE_PATH can be omitted locally
 npm run dev
 ```
 
-### 1. Supabase setup (~5 min)
+The SQLite file defaults to `./data/shotgloss.db` (gitignored). Sign up at
+`/signup` — accounts work immediately, no email confirmation.
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. Run `supabase/migrations/001_init.sql` in the SQL editor.
-3. (Recommended) Authentication → Sign In / Up → Email → disable
-   **Confirm email**, or leave it on — `/auth/callback` handles the links.
-4. Copy the project URL, anon key and service-role key into `.env.local`.
-
-### 2. Stripe setup (~5 min)
+### Stripe setup (~5 min)
 
 1. Create a product "ShotGloss Pro" with a recurring monthly price (e.g. £5).
    Copy the price ID into `STRIPE_PRICE_ID`.
@@ -65,28 +65,31 @@ npm run dev
    Local testing: `stripe listen --forward-to localhost:3000/api/stripe/webhook`.
 3. Enable the Customer Portal (Settings → Billing → Customer portal).
 
+## Deploying to Railway (the whole deployment)
+
+1. New Project → Deploy from GitHub repo. Set **Root Directory** to this
+   folder if the repo contains multiple apps.
+2. Attach a **Volume** mounted at `/data`.
+3. Set the env vars below (`DATABASE_PATH=/data/shotgloss.db`, `AUTH_SECRET`
+   from `openssl rand -hex 32`, `NEXT_PUBLIC_SITE_URL` to your Railway domain).
+4. Point the Stripe webhook at the deployed URL.
+
 ## Environment variables
 
-| Variable                        | Required | Purpose                                    |
-| ------------------------------- | -------- | ------------------------------------------ |
-| `NEXT_PUBLIC_SITE_URL`          | yes      | Public app URL (redirects, SEO)            |
-| `NEXT_PUBLIC_SUPABASE_URL`      | yes      | Supabase project URL                       |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes      | Supabase anon key (RLS-scoped)             |
-| `SUPABASE_SERVICE_ROLE_KEY`     | yes      | Server-only; Stripe webhook plan sync      |
-| `STRIPE_SECRET_KEY`             | yes      | Stripe API key                             |
-| `STRIPE_PRICE_ID`               | yes      | Price ID of the Pro subscription           |
-| `STRIPE_WEBHOOK_SECRET`         | yes      | Webhook signature verification             |
-
-## Deploying to Vercel
-
-1. Import the repo into Vercel; set the root directory to this folder.
-2. Add all env vars; set `NEXT_PUBLIC_SITE_URL` to the production URL.
-3. Point the Stripe webhook at the production URL.
+| Variable                | Required | Purpose                                    |
+| ----------------------- | -------- | ------------------------------------------ |
+| `NEXT_PUBLIC_SITE_URL`  | yes      | Public app URL (redirects, SEO)            |
+| `DATABASE_PATH`         | prod     | SQLite file path (`/data/shotgloss.db` on Railway) |
+| `AUTH_SECRET`           | yes      | Signs session cookies (`openssl rand -hex 32`) |
+| `STRIPE_SECRET_KEY`     | yes      | Stripe API key                             |
+| `STRIPE_PRICE_ID`       | yes      | Price ID of the Pro subscription           |
+| `STRIPE_WEBHOOK_SECRET` | yes      | Webhook signature verification             |
 
 ## Codebase map
 
 ```
-supabase/migrations/001_init.sql  # profiles table + RLS + signup trigger
+src/lib/db.ts                     # SQLite users table + queries
+src/lib/auth.ts                   # sessions (jose JWT cookie) + bcrypt passwords
 src/lib/plans.ts                  # plan limits — change pricing here
 src/components/editor.tsx         # THE product: the whole editor lives here
 src/app/app/page.tsx              # server wrapper (auth → plan → props)
@@ -97,14 +100,14 @@ src/app/api/stripe/               # checkout, portal, webhook
 
 ## Notes for a buyer
 
-- **Running costs:** effectively £0 — Supabase and Vercel free tiers cover it
-  far past £100 MRR because there's no storage and no server compute per use.
+- **Running costs:** one Railway service (~$5/month) + Stripe's cut. No
+  storage or compute per use — rendering happens in visitors' browsers.
 - **Maintenance surface:** one client component and a Stripe webhook. No
   third-party API in the render path at all.
 - **Plan limits live in `src/lib/plans.ts`** — one file to change pricing.
-- Obvious upsell roadmap (deliberately not built): custom background uploads,
-  annotations/arrows, more code themes, saved templates, browser-extension
-  capture, team seats.
+- **Not built (by design), easy to add:** password reset / email confirmation,
+  custom background uploads, annotations/arrows, more code themes, saved
+  templates, browser-extension capture, team seats.
 
 ## SEO keywords being targeted
 

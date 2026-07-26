@@ -1,49 +1,39 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
+import { getUserForm, listAllSubmissions } from "@/lib/db";
 
-// CSV export of a form's submissions. Auth + ownership enforced by RLS:
-// the user-scoped client simply can't see other people's forms.
+// CSV export of a form's submissions. Ownership enforced by the
+// user-scoped lookup — other people's forms simply aren't found.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const session = await getSessionUser();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: form } = await supabase
-    .from("forms")
-    .select("id, name")
-    .eq("id", id)
-    .single();
+  const form = getUserForm(session.id, id);
   if (!form) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { data: submissions } = await supabase
-    .from("submissions")
-    .select("data, created_at")
-    .eq("form_id", id)
-    .order("created_at", { ascending: true });
-
-  const rows = submissions ?? [];
+  const rows = listAllSubmissions(id).map((r) => ({
+    created_at: r.created_at,
+    fields: JSON.parse(r.data) as Record<string, string>,
+  }));
   const columns = Array.from(
-    new Set(rows.flatMap((r) => Object.keys(r.data as Record<string, string>)))
+    new Set(rows.flatMap((r) => Object.keys(r.fields)))
   );
 
   const header = ["submitted_at", ...columns].map(csvEscape).join(",");
   const body = rows
-    .map((r) => {
-      const data = r.data as Record<string, string>;
-      return [r.created_at, ...columns.map((c) => data[c] ?? "")]
+    .map((r) =>
+      [r.created_at, ...columns.map((c) => r.fields[c] ?? "")]
         .map(csvEscape)
-        .join(",");
-    })
+        .join(",")
+    )
     .join("\n");
 
   const filename = `${form.name.replace(/[^a-z0-9-_]+/gi, "-").toLowerCase()}-submissions.csv`;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
+import { getUserById } from "@/lib/db";
 import { logout } from "@/app/auth/actions";
 import { PLANS, planFor } from "@/lib/plans";
 import { Badge } from "@/components/ui/badge";
@@ -15,18 +16,12 @@ export default async function AccountPage({
   searchParams: Promise<{ success?: string }>;
 }) {
   const { success } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getSessionUser();
+  if (!session) redirect("/login");
+  const user = getUserById(session.id);
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, email")
-    .eq("id", user.id)
-    .single();
-  const plan = planFor(profile?.plan);
+  const plan = planFor(user.plan);
   const isPro = plan.name === "Pro";
 
   return (
@@ -65,9 +60,7 @@ export default async function AccountPage({
           <CardContent className="space-y-5">
             <p className="text-sm text-zinc-600">
               Signed in as{" "}
-              <span className="font-medium text-zinc-900">
-                {profile?.email ?? user.email}
-              </span>
+              <span className="font-medium text-zinc-900">{user.email}</span>
               {" · "}
               {plan.repliesPerMonth} replies / month
             </p>

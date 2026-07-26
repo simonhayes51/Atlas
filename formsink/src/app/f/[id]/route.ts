@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  countSubmissionsThisMonth,
+  getForm,
+  getUserById,
+  insertSubmission,
+} from "@/lib/db";
 import { sendSubmissionEmail } from "@/lib/email";
 import { planFor } from "@/lib/plans";
 import { siteUrl } from "@/lib/stripe";
@@ -57,14 +62,7 @@ export async function POST(
   }
 
   // --- Look up the form and its owner --------------------------------------
-  const supabase = createAdminClient();
-
-  const { data: form } = await supabase
-    .from("forms")
-    .select("id, name, notify, redirect_url, user_id")
-    .eq("id", id)
-    .single();
-
+  const form = getForm(id);
   if (!form) {
     return respond(wantsJson, { error: "Form not found" }, 404);
   }
@@ -75,29 +73,10 @@ export async function POST(
   }
 
   // --- Enforce the owner's monthly submission limit -------------------------
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("email, plan")
-    .eq("id", form.user_id)
-    .single();
+  const owner = getUserById(form.user_id);
+  const plan = planFor(owner?.plan);
 
-  const plan = planFor(profile?.plan);
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
-
-  const { data: userForms } = await supabase
-    .from("forms")
-    .select("id")
-    .eq("user_id", form.user_id);
-
-  const { count } = await supabase
-    .from("submissions")
-    .select("id", { count: "exact", head: true })
-    .in("form_id", (userForms ?? []).map((f) => f.id))
-    .gte("created_at", monthStart.toISOString());
-
-  if ((count ?? 0) >= plan.maxSubmissionsPerMonth) {
+  if (countSubmissionsThisMonth(form.user_id) >= plan.maxSubmissionsPerMonth) {
     if (wantsJson) {
       return respond(true, { error: "Monthly submission limit reached" }, 429);
     }
@@ -108,17 +87,11 @@ export async function POST(
   }
 
   // --- Store and notify -----------------------------------------------------
-  const { error: insertError } = await supabase
-    .from("submissions")
-    .insert({ form_id: form.id, data: fields });
+  insertSubmission(form.id, fields);
 
-  if (insertError) {
-    return respond(wantsJson, { error: "Could not store submission" }, 500);
-  }
-
-  if (form.notify && profile?.email) {
+  if (form.notify === 1 && owner?.email) {
     await sendSubmissionEmail({
-      to: profile.email,
+      to: owner.email,
       formName: form.name,
       formId: form.id,
       data: fields,
@@ -136,7 +109,10 @@ function success(
   if (wantsJson) {
     return respond(true, { ok: true }, 200);
   }
-  const target = safeRedirect(nextUrl) ?? safeRedirect(formRedirect) ?? new URL("/thanks", siteUrl()).toString();
+  const target =
+    safeRedirect(nextUrl) ??
+    safeRedirect(formRedirect) ??
+    new URL("/thanks", siteUrl()).toString();
   return NextResponse.redirect(target, { status: 303, headers: CORS_HEADERS });
 }
 
@@ -156,6 +132,7 @@ function respond(wantsJson: boolean | undefined, body: object, status: number) {
   if (wantsJson) {
     return NextResponse.json(body, { status, headers: CORS_HEADERS });
   }
-  const message = "error" in body ? String((body as { error: string }).error) : "OK";
+  const message =
+    "error" in body ? String((body as { error: string }).error) : "OK";
   return new NextResponse(message, { status, headers: CORS_HEADERS });
 }

@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
+import { getUserById } from "@/lib/db";
 import { planFor } from "@/lib/plans";
 import { Editor } from "@/components/editor";
 
@@ -6,20 +7,9 @@ export const metadata = { title: "Editor" };
 
 // Server wrapper: resolves auth + plan, hands the client editor its limits.
 export default async function EditorPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let plan = planFor(null);
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("plan")
-      .eq("id", user.id)
-      .single();
-    plan = planFor(profile?.plan);
-  }
+  const session = await getSessionUser();
+  const user = session ? getUserById(session.id) : undefined;
+  const plan = planFor(user?.plan);
 
   return (
     <Editor

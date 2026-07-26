@@ -1,46 +1,29 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
-// Refreshes the Supabase session cookie and guards /dashboard.
+// Guards /dashboard. Runs on the Edge runtime, so it only verifies the
+// session cookie's signature — no database access here.
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const token = request.cookies.get("session")?.value;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
+  let valid = false;
+  if (token && process.env.AUTH_SECRET) {
+    try {
+      await jwtVerify(token, new TextEncoder().encode(process.env.AUTH_SECRET));
+      valid = true;
+    } catch {
+      valid = false;
     }
-  );
+  }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
+  if (!valid) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
-
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
-  // Skip static assets and the public submission endpoint (/f/*),
-  // which must stay session-free and CORS-open.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|f/).*)"],
+  matcher: ["/dashboard/:path*"],
 };

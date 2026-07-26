@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
+import { getUserById } from "@/lib/db";
 import { PLANS, planFor } from "@/lib/plans";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,18 +13,12 @@ export default async function BillingPage({
   searchParams: Promise<{ limit?: string; success?: string }>;
 }) {
   const { limit, success } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getSessionUser();
+  if (!session) redirect("/login");
+  const user = getUserById(session.id);
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, stripe_customer_id")
-    .eq("id", user.id)
-    .single();
-  const plan = planFor(profile?.plan);
+  const plan = planFor(user.plan);
   const isPro = plan.name === "Pro";
 
   return (

@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
+import {
+  countGenerationsThisMonth,
+  getUserById,
+  insertGeneration,
+} from "@/lib/db";
 import { generateReviewReply } from "@/lib/claude";
 import { planFor, TONES } from "@/lib/plans";
 
@@ -29,32 +34,16 @@ export async function generateReply(
     return { error: "Pick a valid tone." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const session = await getSessionUser();
+  if (!session) {
     return { error: "Please log in again." };
   }
 
   // Enforce the monthly limit before spending API credits.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan")
-    .eq("id", user.id)
-    .single();
-  const plan = planFor(profile?.plan);
+  const user = getUserById(session.id);
+  const plan = planFor(user?.plan);
 
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
-  const { count } = await supabase
-    .from("generations")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("created_at", monthStart.toISOString());
-
-  if ((count ?? 0) >= plan.repliesPerMonth) {
+  if (countGenerationsThisMonth(session.id) >= plan.repliesPerMonth) {
     return {
       error:
         plan.name === "Free"
@@ -73,12 +62,12 @@ export async function generateReply(
     };
   }
 
-  await supabase.from("generations").insert({
-    user_id: user.id,
+  insertGeneration({
+    userId: session.id,
     review,
     reply,
     tone,
-    business_name: businessName,
+    businessName,
   });
 
   revalidatePath("/app");

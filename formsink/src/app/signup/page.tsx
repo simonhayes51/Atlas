@@ -8,9 +8,9 @@ export const metadata = { title: "Sign up" };
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; check?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const { error, check } = await searchParams;
+  const { error } = await searchParams;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-6">
@@ -30,25 +30,19 @@ export default async function SignupPage({
               {error}
             </p>
           )}
-          {check ? (
-            <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              Check your email to confirm your account, then log in.
-            </p>
-          ) : (
-            <form action={signup} className="mt-4 space-y-3">
-              <Input name="email" type="email" placeholder="you@example.com" required />
-              <Input
-                name="password"
-                type="password"
-                placeholder="Password (min 6 characters)"
-                minLength={6}
-                required
-              />
-              <Button className="w-full" type="submit">
-                Sign up
-              </Button>
-            </form>
-          )}
+          <form action={signup} className="mt-4 space-y-3">
+            <Input name="email" type="email" placeholder="you@example.com" required />
+            <Input
+              name="password"
+              type="password"
+              placeholder="Password (min 6 characters)"
+              minLength={6}
+              required
+            />
+            <Button className="w-full" type="submit">
+              Sign up
+            </Button>
+          </form>
         </div>
         <p className="mt-4 text-center text-sm text-zinc-600">
           Already have an account?{" "}
